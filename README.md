@@ -1,5 +1,6 @@
 # Go1 Sim-to-Real Locomotion Starter Kit
 
+This branch serves as the deployment in go2
 
 # Table of contents
 1. [Overview](#overview)
@@ -194,50 +195,86 @@ If it does not appear, and you're working in docker, make sure you haven't forgo
 - Our code implements the safety layer from Unitree's `unitree_legged_sdk` with PowerProtect level 9. This will cut off power to the motors if the joint torque is too high (could happen sometimes during fast running)
 - <b>This is research code; use at your own risk; we do not take responsibility for any damage.</b>
 
+**Reminder: This branch is specifically designed for connecting to the Unitree Go2 robot using an Ethernet cable and running the policy on an external computer. Unfortunately, we are unable to provide a corresponding Docker image for deploying the controller. However, you can configure the environment on the robot yourself and execute go1_gym_deploy/scripts/deploy_policy.py and unitree_sdk2/build/lcm_position for deploying the controller.**
 
-### Installing the Deployment Utility  <a name="robotconfig"></a>
+### Depolyment framework
 
-The first step is to connect your development machine to the robot using ethernet. You should ping the robot to verify the connection: `ping 192.168.123.15` should return `x packets transmitted, x received, 0% packet loss`.
+![deployment_framework](media/deployment_framework.jpeg?raw=true)
 
-Once you have confirmed the robot is connected, run the following command on your computer to transfer files to the robot. The first time you run it, the script will download and transfer the zipped docker image for development on the robot (`deployment_image.tar`). This file is quite large (3.5GB), but it only needs to be downloaded and transferred once.
 
-```
-cd go1_gym_deploy/scripts && ./send_to_unitree.sh
-```
 
-Next, you will log onto the robot's onboard computer and install the docker environment. To enter the onboard computer, the command is:
 
-```
-ssh unitree@192.168.123.15
-```
+### Environment Setting  <a name="robotconfig"></a>
 
-Now, run the following commands on the robot's onboard computer:
 
-```
-chmod +x installer/install_deployment_code.sh
-cd ~/go1_gym/go1_gym_deploy/scripts
-sudo ../installer/install_deployment_code.sh
+1. Install LCM
+
+```shell
+# download lcm 1.5.0 and extract
+https://github.com/lcm-proj/lcm/archive/refs/tags/v1.5.0.zip
 ```
 
-The installer will automatically unzip and install the docker image containing the deployment environment. 
+```shell
+cd lcm-1.5.0
+mkdir build
+cd build
+cmake ..
+make
+sudo make install
+```
+```shell
+# python
+cd lcm-1.5.0
+cd lcm-python
+python3 setup.py install
+
+```
+
+1. Install the Unitree_sdk2
+
+ Since the APIs of `unitree_sdk` of different robot dogs are different, we transplanted and modified this framework and added it to the sdk，please delete your prior installed `unitree_sdk`.
+
+ ```shell
+ cd walk-these-ways 
+ mv go1_gym_deploy/unitree_sdk2 ~
+ cd ~/unitree_sdk2
+ sudo ./install.sh
+ mkdir build
+ cd build
+ cmake ..
+ make
+ ```
+
+
+The first step is to connect your development machine to the robot using ethernet. You should check out [Unitree Go2 sdk](https://support.unitree.com/home/en/developer/Quick_start) for detailed steps and information and run `stand_example_go2` example successfully before deployment. You should ping the Go2 robot to verify the connection: `ping 192.168.123.161` should return `64 bytes from 192.168.123.161: icmp_seq=3 ttl=64 time=0.214 ms` and ` x packets transmitted, x received, 0% packet loss`. 
+
+Besides, remember the `network card names ` corresponding to the 123 network segment which should be obtained by running `ifconfig`
+
+Once you have confirmed the robot is connected, run the following command on your computer to start the communication between controller and robot. 
+<!-- ```
+ifconfig
+
+``` -->
+
+
+```shell
+cd ~/unitree_sdk2/build
+./lcm_position enp2s0
+```
+
+When terminal print `"deployment started!"` , it means that the communication for deployment start running.
 
 
 ### Running the Controller  <a name="runcontroller"></a>
 
-Place the robot into damping mode. The control sequence is: [L2+A], [L2+B], [L1+L2+START]. After this, the robot should sit on the ground and the joints should move freely. 
+Activate the robot, and once the robot is standing, press [L2+B] to put the robot in damping mode. After this, the robot should sit on the ground, and the joints should move freely.
 
-Now, ssh to `unitree@192.168.123.15` and run the following two commands to start the controller. <b>This will operate the robot in low-level control mode. Make sure your Go1 is hung up.</b>
+Now, you could run the given policy or your own policy in controller
 
-First:
-```
-cd ~/go1_gym/go1_gym_deploy/autostart
-./start_unitree_sdk.sh
-```
-
-Second:
-```
-cd ~/go1_gym/go1_gym_deploy/docker
-sudo make autostart
+```shell
+# before running, remember to activate your conda environment first
+cd go1_gym_deploy/scripts
+python deploy_policy.py
 ```
 
 The robot will wait for you to press [R2], then calibrate, then wait for a second press of [R2] before running the control loop.

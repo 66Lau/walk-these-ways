@@ -1,0 +1,1 @@
+/usr/bin/c++     CMakeFiles/lcm_position.dir/example/low_level/lcm_position.cpp.o  -o lcm_position  -lunitree_sdk2 -lddsc -lddscxx -lrt -lpthread -llcm 
